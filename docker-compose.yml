@@ -1,0 +1,51 @@
+services:
+  db:
+    image: mariadb:11.4
+    container_name: intern-todo-db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: todoList
+      MARIADB_ROOT_PASSWORD: password123
+      MARIADB_USER: todo_user
+      MARIADB_PASSWORD: todo_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - todo-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: intern-todo-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: todoList
+      DB_USERNAME: todo_user
+      DB_PASSWORD: todo_password
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    container_name: intern-todo-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  todo-db-data:
